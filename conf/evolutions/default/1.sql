@@ -45,7 +45,8 @@ create table issues (
 # --- Downs!
 
 drop table issues;
-drop table user2project
+drop table user2project;
 drop table projects;
 drop table users;
-
+drop type UserRole;
+drop type UserStatus;
