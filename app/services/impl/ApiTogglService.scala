@@ -2,10 +2,13 @@ package services.impl
 
 import services.TogglService
 import services.TogglService.{Project, Workspace}
+
 import play.api.libs.ws.WSClient
-import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.ws.WSAuthScheme.BASIC
 import play.api.libs.json._
+
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
 
 /**
   * Implimatation of [[TogglService]]
@@ -20,10 +23,13 @@ class ApiTogglService(ws: WSClient)(implicit val ec: ExecutionContext) extends T
     * @return the list of all Toggle projects in the workspace
     */
   override def getTogglProjects(apiToken: String): Future[List[String]] = {
-    //TODO: The workspace ID should be passed to this method.
-    // Meanwhile, in order to test change the xxxx to a roper workspace.
+    // Getting the workspace ID
+    val workspaceFuture = getTogglWorkspace(apiToken)
+    val duration = Duration(2, SECONDS) // TODO: I don't like the way this is implemented. Needs review
+    val workspaceNoFuture = Await.result(workspaceFuture, duration)
+    val workspaceID = workspaceNoFuture.head
 
-    val request = ws.url(s"https://www.toggl.com/api/v8/workspaces/xxxx/projects")
+    val request = ws.url(s"https://www.toggl.com/api/v8/workspaces/" + workspaceID + "/projects")
       .withHeaders("Content-Type" -> "application/Json")
       .withAuth(apiToken, "api_token", BASIC)
 
@@ -38,7 +44,7 @@ class ApiTogglService(ws: WSClient)(implicit val ec: ExecutionContext) extends T
     }
   }
 
-  override def getTogglWorkspace(apiToken: String): Future[List[String]] = {
+  override def getTogglWorkspace(apiToken: String): Future[List[Long]] = {
     val request = ws.url("https://www.toggl.com/api/v8/workspaces")
       .withHeaders("Content-Type" -> "application/Json")
       .withAuth(apiToken, "api_token", BASIC)
@@ -48,7 +54,7 @@ class ApiTogglService(ws: WSClient)(implicit val ec: ExecutionContext) extends T
       val validateBody = bodyJSValue.validate[List[Workspace]]
       validateBody match {
         case JsSuccess(workspaceList: List[Workspace], _) =>
-          workspaceList.map(_.name)
+          workspaceList.map(_.id)
         case JsError(_) =>
           List.empty
         case _ =>
